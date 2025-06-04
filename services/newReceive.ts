@@ -1,7 +1,7 @@
 import GraphApi from "./graph-api";
 
 import { ChatOpenAI } from "@langchain/openai";
-import { SystemMessage } from "@langchain/core/messages";
+import { SystemMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { TavilySearch } from "@langchain/tavily";
 import { z } from "zod";
 import { tool } from "@langchain/core/tools";
@@ -68,6 +68,9 @@ const fetchLyrics = tool(
     }
 
 )
+
+// Bind the tool to the model
+const tools = [fetchLyrics];
 
 const modelWithTool = model.bindTools([fetchLyrics]);
 
@@ -207,7 +210,7 @@ export default class Receive {
         }
 
         // Call the model to get a response
-        const prompt = `
+        let prompt = `
         ${mainInstruction}
         
         ## Current conversation:
@@ -217,9 +220,29 @@ export default class Receive {
         `;
         console.log('PROMPT IS: ', prompt);
         try {
-            const response = await model.invoke([new SystemMessage(prompt)]);
-            if (typeof response.content === 'string') {
-                console.log("Response message:", response.content);
+            const response = await modelWithTool.invoke([new SystemMessage(prompt)]);
+
+            if (response instanceof AIMessage && response.tool_calls?.length) {
+                for (const toolCall of response.tool_calls) {
+                    const toolName = toolCall.name;
+                    const toolArgs = toolCall.args;
+                    const toolCallId = toolCall.id;
+                    console.log("Tool call detected:", toolName, toolArgs, toolCallId);
+               
+                    // find and execute the tool
+                    const tool = tools.find(t => t.name === toolName);
+                    if (tool) {
+                        const result = await tool.invoke(toolArgs);
+                        console.log("Tool result:", result);
+
+                        // Append result to the ToolMessage
+                        prompt = prompt + `\n\nTool result: ${JSON.stringify(result)}`;
+                    }
+                
+                }
+
+            } else {
+                console.log("Response message:", response);
                 return { message: response.content, threadId: thread._id, closeLesson: false };
             }
         } catch (error) {
