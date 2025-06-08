@@ -28,6 +28,7 @@ export default class GraphApi {
         `Unable to call Send API: ${response.statusText}`,
         await response.json()
       );
+      return { sent };
     } else {
       sent = true;
       console.log(`Message sent.`);

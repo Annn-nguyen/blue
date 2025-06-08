@@ -1,15 +1,16 @@
 import GraphApi from "./graph-api";
 
 import { ChatOpenAI } from "@langchain/openai";
-import { SystemMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
+import { SystemMessage, AIMessage, ToolMessage, BaseMessage, isToolMessage, mapStoredMessageToChatMessage } from "@langchain/core/messages";
 import { TavilySearch } from "@langchain/tavily";
 import { z } from "zod";
 import { tool } from "@langchain/core/tools";
 
 import Thread from "../models/Thread";
 import Message from "../models/Message";
+import UserVocab from "../models/UserVocab";
 
-import { mainInstruction } from "./instruction";
+import { mainInstruction, extractWordsInstruction } from "./instruction";
 
 import { scrapeFromAZLyrics, scrapeMiraikyun } from "./scrapeLyrics";
 
@@ -19,7 +20,7 @@ import { raw } from "body-parser";
 dotenv.config();
 
 const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1",
 });
 
 
@@ -29,11 +30,11 @@ const tavilyTool = new TavilySearch({ maxResults: 5 });
 const fetchLyricsSchema = z.object({
     artist: z.string().describe("Artist of the song to fetch lyrics for"),
     title: z.string().describe("Title of the song to fetch lyrics for"),
-    query: z.string().describe("Query to search for lyrics, format like 'Full lyrics of Tsubame by Yoasobi'"),
+    query: z.string().describe("Query to search for lyrics. You need to also specify preferrably from azlyrics or miraikyun. For example 'Full lyrics of Tsubame by Yoasobi, preferrably from azlyrics.com or miraikyun.com'"),
 });
 
 const fetchLyrics = tool(
-    async ({artist, title, query}:{ artist: string, title: string, query: string }) => {
+    async ({ artist, title, query }: { artist: string, title: string, query: string }) => {
 
         // First search for the url link of the lyrics
         try {
@@ -45,6 +46,8 @@ const fetchLyrics = tool(
                 if (result.url.includes("azlyrics.com")) {
                     const lyrics = await scrapeFromAZLyrics(result.url);
                     if (lyrics) {
+                        // Update lyrics to Thread.material
+                        
                         return { lyrics: lyrics.lyrics };
                     }
                 }
@@ -69,8 +72,37 @@ const fetchLyrics = tool(
 
 )
 
+const updateThreadMaterialSchema = z.object({
+    material: z.string().describe("Lyrics material to update the thread with"),
+    artist: z.string().describe("Artist of the song"),
+    title: z.string().describe("Title of the song"),
+    threadid: z.string().describe("ID of the thread to update"),
+});
+
+const updateThreadMaterial = tool(
+    async ({material, artist, title, threadId}: { material: string, artist: string, title: string, threadId: string }) => {
+        try {
+            // Update the thread's material and topic (with artist and title)
+            const updatedThread = await Thread.findByIdAndUpdate(threadId, {
+                material: material,
+                topic: `${artist} - ${title}`,
+            }, { new: true });
+            console.log("Thread updated with material:", updatedThread);
+            return { success: true, message: "Thread material updated successfully." };
+        } catch (error) {
+            console.error("Error updating thread material:", error);
+            return { success: false, message: "Failed to update thread material." };
+        }
+    },
+    {
+        name: "updateThreadMaterial",
+        description: "Update the thread's material with lyrics and topic with artist and title",
+        schema: updateThreadMaterialSchema,
+    }
+);
+            
 // Bind the tool to the model
-const tools = [fetchLyrics];
+const tools = [fetchLyrics, updateThreadMaterial];
 
 const modelWithTool = model.bindTools([fetchLyrics]);
 
@@ -79,7 +111,7 @@ type User = any;
 
 export default class Receive {
 
-    user: User;
+    user: User; //this is the whole user object
     webhookEvent: WebhookEvent;
     isUserRef: boolean;
 
@@ -103,29 +135,29 @@ export default class Receive {
     async saveUserMessage(threadId: string, psid: string, text: string) {
         try {
             const message = await Message.create({
-            threadId,
-            sender: "user",
-            psid,
-            text
+                threadId,
+                sender: "user",
+                psid,
+                text
             });
             console.log("User message saved:", message.text);
             return message;
         } catch (error) {
-            console.error("Error saving user message:", error);        
+            console.error("Error saving user message:", error);
         }
     }
 
     async saveBotMessage(threadId: string, text: string) {
         try {
             const message = await Message.create({
-            threadId,
-            sender: "bot",
-            text
+                threadId,
+                sender: "bot",
+                text
             });
             console.log("Bot message saved:", message.text);
             return message;
         } catch (error) {
-            console.error("Error saving bot message:", error);        
+            console.error("Error saving bot message:", error);
         }
     }
 
@@ -143,8 +175,157 @@ export default class Receive {
         return chatHistory;
     }
 
+    async extractWordsFromMaterial(material: string): Promise<string[]> {
+        
+        // Use the extractWordsInstruction to extract words from the material. the output of the AI is already an array of words.
+        const outputSchema = z.object({
+            words: z.array(z.string()).describe("list of word extracted"),
+        })
+        
+        try { 
+            const response = await model.withStructuredOutput(outputSchema).invoke([new SystemMessage(extractWordsInstruction), new AIMessage(material)]);
+            console.log("Extracted words response:", response);
+            if ("words" in response) {
+                return response.words;
+            }
+        } catch (error) {
+            console.error("Error extracting words from material:", error);
+
+        }
+        return [];
+    }
+
+    
+    async getUserVocab(wordList: string[], userId: string): Promise<any> {
+        
+        // find the words in UserVocab that match the wordlist provided
+        const response = await UserVocab.find({
+            userId, word: { $in: wordList}
+        });
+        console.log('Result found: ', response)
+        
+        const known = []
+        const introduced = []
+        for (const item of response) {
+            if (item.status === "known") {
+                known.push(item.word)
+            } 
+            if (item.status === "introduced") {
+                introduced.push(item.word)
+            }
+        }
+
+        const knownString = known.length > 0 ? known.join(","): "none";
+        const introducedString = introduced.length > 0 ? introduced.join(",") : "none";
+
+        return `
+        Known words: ${knownString}
+        Introduced words: ${introducedString}`
+        
+    }
+
+    async processWithToolCall(currentMessages: BaseMessage[], threadId: string) : Promise<BaseMessage[]> {
+            const response = await modelWithTool.invoke(currentMessages);
+            console.log("Response message:", response);
+
+            if (response.tool_calls?.length) {
+                const toolMessages: BaseMessage[] = [response];
+                console.log("Tool message at start of processWithToolCase", JSON.stringify(toolMessages, null, 2));
+
+                // Process each tool call
+                for (const toolCall of response.tool_calls) {
+                    if (toolCall.name === "fetchLyrics") {
+                        const result = await fetchLyrics.invoke(toolCall.args);
+                        
+                        // Save the lyrics to the thread's material
+                        if (result.lyrics) {
+                            try {
+                                await Thread.findByIdAndUpdate(threadId, { material: result.lyrics });
+                                console.log("Thread material updated with lyrics");
+                            } catch (error) {
+                                console.error("Error updating thread material:", error);
+                            }
+                        }
+
+                        // Retrieve the userVocab and update to Thread
+                        const wordList = await this.extractWordsFromMaterial(result.lyrics);
+                        const userVocab = await this.getUserVocab(wordList, this.user._id);
+                        try {
+                            await Thread.findByIdAndUpdate(
+                            threadId, {userVocab: userVocab});
+
+                            console.log('Update Thread.userVocab successfully');
+                        } catch (error) {
+                            console.log('Fail to update Thread.userVocab ', error);
+                        }
+
+                        // Craft tool response
+                        const toolMessage = new ToolMessage({
+                            content: `
+                            ${result.lyrics}/n
+                            The words user has known/introduced are:
+                            ${userVocab}
+                            `,
+                            name: toolCall.name,
+                            tool_call_id: toolCall.id!,
+                        });
+                        console.log("Tool result:", toolMessage.content)
+
+                        // Append result to the messages
+                        toolMessages.push(toolMessage);
+                        console.log("Tool message after processing fetchLyrics", JSON.stringify(toolMessages, null, 2));
+                    } else if (toolCall.name === "updateThreadMaterial") {
+                        const result = await updateThreadMaterial.invoke(toolCall.args);
+                        const toolMessage = new ToolMessage({
+                            content: result.success,
+                            name: toolCall.name,
+                            tool_call_id: toolCall.id!,
+                        });
+                        console.log("Tool result:", toolMessage);
+
+                        // Append result to the messages
+                        toolMessages.push(toolMessage);
+                        console.log("Tool message after processing updateThreadMaterial", JSON.stringify(toolMessages, null, 2));
+                    }      
+                }
+                // Recursively process the tool calls
+                return this.processWithToolCall([ ...currentMessages, ...toolMessages ], threadId);
+            }
+
+            // Return the response messages if no tool calls are present
+            return [...currentMessages, response];
+
+        }
+
+    async closeThread(threadId: string, threadMessage: string) : Promise<void> {
+        try {
+        // Send message and update status = close
+        await this.sendMessage(
+            "Yes, I will close the lesson and update your progress (lesson history and vocabulary) in the system. You can start a new lesson anytime by sending me a message.",
+            threadId
+        );
+        await Thread.findByIdAndUpdate(threadId, {status : "closed"});
+
+        // get threadMessage
+        const rawThreadMessages = await Message.find({threadId});
+        const threadMessages = rawThreadMessages
+        .map((message) => `At ${message.timestamp} from ${message.sender} : ${message.text}`)
+        .join("\n");
+
+        // invoke model to decide how to update userVocab
 
 
+
+
+      
+
+        //
+        } catch (error) {
+        console.log("Something went wrong", error);
+        }
+        
+    }
+    
 
 
     async handleMessage(): Promise<void> {
@@ -189,6 +370,8 @@ export default class Receive {
 
     }
 
+    
+
 
     async handleTextMessage(): Promise<{ message: string, threadId: string, closeLesson: boolean }> {
 
@@ -213,43 +396,71 @@ export default class Receive {
         let prompt = `
         ${mainInstruction}
         
+        ## Context of current lesson:
+        ${thread.material || "No lyrics material available"}
+
+        ## Word list that user has known or introduced in other song but not yet familiar
+        ${thread.userVocab || "(No information)"}
+
         ## Current conversation:
         ${chatHistory}
         
-        Please generate the suitable response to user (within 150 words)
+        Define the response to user (within 2000 characters only), using the tools available if necessary. 
         `;
         console.log('PROMPT IS: ', prompt);
-        try {
-            const response = await modelWithTool.invoke([new SystemMessage(prompt)]);
 
-            if (response instanceof AIMessage && response.tool_calls?.length) {
-                for (const toolCall of response.tool_calls) {
-                    const toolName = toolCall.name;
-                    const toolArgs = toolCall.args;
-                    const toolCallId = toolCall.id;
-                    console.log("Tool call detected:", toolName, toolArgs, toolCallId);
-               
-                    // find and execute the tool
-                    const tool = tools.find(t => t.name === toolName);
-                    if (tool) {
-                        const result = await tool.invoke(toolArgs);
-                        console.log("Tool result:", result);
+        const messages = [ 
+            new SystemMessage(prompt)
+        ];
 
-                        // Append result to the ToolMessage
-                        prompt = prompt + `\n\nTool result: ${JSON.stringify(result)}`;
-                    }
-                
-                }
+        // recursive tool calling handling
+        
+        
+        // Use the recursive function to process tool calls
+        const allMessages = await this.processWithToolCall(messages, thread._id);
+        // set outputMessage to the property content of the last message in allMessages
+        console.log("ALLMESSAGES AFTER PROCESSWITHCALLTOOLS", JSON.stringify(allMessages, null, 2));
+        const outputMessage = allMessages[allMessages.length - 1].content || "Sorry, something went wrong. I couldn't process your request.";        
 
-            } else {
-                console.log("Response message:", response);
-                return { message: response.content, threadId: thread._id, closeLesson: false };
-            }
-        } catch (error) {
-            console.error("Error invoking model:", error);
-        }
-        console.log("No response from model, not respond to user");
-        return { message: "", threadId: "", closeLesson: false };
+
+        return {
+            message: outputMessage,
+            threadId: thread._id,
+            closeLesson: false}
+
+
+        // while (true) {
+        //     try {
+        //         const response = await modelWithTool.invoke([new SystemMessage(prompt)]);
+        //         console.log("Response message:", response);
+        //         if (response instanceof AIMessage && response.tool_calls?.length) {
+        //             for (const toolCall of response.tool_calls) {
+        //                 const toolName = toolCall.name;
+        //                 const toolArgs = toolCall.args;
+        //                 const toolCallId = toolCall.id;
+        //                 console.log("Tool call detected:", toolName, toolArgs, toolCallId);
+
+        //                 // find and execute the tool
+        //                 const tool = tools.find(t => t.name === toolName);
+        //                 if (tool) {
+        //                     const result = await tool.invoke(toolArgs);
+        //                     console.log("Tool result:", result);
+
+        //                     // Append result to the ToolMessage
+        //                     prompt = prompt + `\n\n## Tool result: You have called tool ${toolName} and got the result as \n ${JSON.stringify(result)}`;
+        //                 }
+
+        //             }
+
+        //         } else {
+        //             return { message: response.content, threadId: thread._id, closeLesson: false };
+        //         }
+        //     } catch (error) {
+        //         console.error("Error invoking model:", error);
+        //         return { message: "", threadId: "", closeLesson: false };
+        //     }
+        // }
+        
     }
 
     async sendMessage(message: string, threadId: string): Promise<void> {
