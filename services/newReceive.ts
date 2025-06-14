@@ -10,13 +10,14 @@ import Thread from "../models/Thread";
 import Message from "../models/Message";
 import UserVocab from "../models/UserVocab";
 
-import { mainInstruction, extractWordsInstruction } from "./instruction";
+import { mainInstruction, extractWordsInstruction, closeLessonInstruction } from "./instruction";
 
 import { scrapeFromAZLyrics, scrapeMiraikyun } from "./scrapeLyrics";
 
 import dotenv from "dotenv";
 import { request } from "express";
 import { raw } from "body-parser";
+import { threadId } from "worker_threads";
 dotenv.config();
 
 const model = new ChatOpenAI({
@@ -45,9 +46,7 @@ const fetchLyrics = tool(
             for (const result of searchResult.results) {
                 if (result.url.includes("azlyrics.com")) {
                     const lyrics = await scrapeFromAZLyrics(result.url);
-                    if (lyrics) {
-                        // Update lyrics to Thread.material
-                        
+                    if (lyrics) {                        
                         return { lyrics: lyrics.lyrics };
                     }
                 }
@@ -297,27 +296,69 @@ export default class Receive {
 
         }
 
-    async closeThread(threadId: string, threadMessage: string) : Promise<void> {
+    async closeThread(threadId: string, vocabBeforeLesson: string) : Promise<void> {
+        const userId = this.user._id;
+        
         try {
-        // Send message and update status = close
-        await this.sendMessage(
-            "Yes, I will close the lesson and update your progress (lesson history and vocabulary) in the system. You can start a new lesson anytime by sending me a message.",
-            threadId
-        );
-        await Thread.findByIdAndUpdate(threadId, {status : "closed"});
+        // // Send message and update status = close
+        // await this.sendMessage(
+        //     "Yes, I will close the lesson and update your progress (lesson history and vocabulary) in the system. You can start a new lesson anytime by sending me a message.",
+        //     threadId
+        // );
+        console.log('NOT CLOSE THREAD YET FOR TESTING PURPOSE');
+        // await Thread.findByIdAndUpdate(threadId, {status : "closed"});
+        // console.log('status updated as closed');
 
         // get threadMessage
         const rawThreadMessages = await Message.find({threadId});
         const threadMessages = rawThreadMessages
         .map((message) => `At ${message.timestamp} from ${message.sender} : ${message.text}`)
         .join("\n");
+        console.log('done preparing data');
 
         // invoke model to decide how to update userVocab
+        const vocabSchema = z.object({
+            userId: z.string().describe('_id of the user'),
+            word : z.string().describe('the word to learn'),
+            note: z.string().describe('note for the word: for japanese/chinese/korean, note its romanji'),
+            meaning: z.string().describe('meaning of the word in the language of the learner'),
+            status: z.enum(["introduced", "known"]).describe('status of the word'),
+            language: z.enum(["English", "Chinese", "Japanese", "Korean",  "French", "Italian"]).describe('language of the word')
+        });
 
+        const vocabArraySchema = z.object({
+            vocabs: z.array(vocabSchema).describe('list of words to update to user vocab')
+        });
 
+        const prompt = `
+        ${closeLessonInstruction}
 
+        UserId is: ${userId}
 
-      
+        Vocab before thread: ${vocabBeforeLesson}
+
+        Chat thread:
+        ${threadMessages}
+        `
+        const result = await model.withStructuredOutput(vocabArraySchema).invoke(prompt);
+        console.log('Response from AI to update userVocab ', result);
+        // update to UserVocab
+        for (const item of result.vocabs) {
+            await UserVocab.updateOne(
+                { userId, word: item.word },
+                {
+                    $set: {
+                        status: item.status,
+                        note : item.note || "",
+                        meaning: item.meaning,
+                        language: item.language
+                    }
+                },
+                { upsert: true}
+            )
+
+        }
+
 
         //
         } catch (error) {
@@ -355,8 +396,9 @@ export default class Receive {
 
         // handle close message
         if (response.closeLesson) {
+            const thread = await Thread.findById(response.threadId);
             try {
-                await Thread.findByIdAndUpdate(response.threadId, { status: "closed" });
+                await this.closeThread(response.threadId, "" );
                 console.log("Thread closed successfully");
 
             } catch (error) {

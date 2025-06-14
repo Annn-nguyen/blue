@@ -51,12 +51,28 @@ You are a language tutor. You evaluate the thread and decide how to update userV
 - thread messages
 
 # Process:
-- If the word introduced in the lesson AND the word has not existed in user vocabulary, add this word to userVocab with status "introduced" 
-- If the word introduced in the lesson AND the word has existed in the user vocabulary with status "introduced", update this word in userVocab with status "known"
-- If the word introduced in the lesson AND the word has existed in the user vocabulary with status "introduced"/"known" but user fail to answer the quiz related, update the word in userVocab with status "introduced"
-
-# Output:
-
+- All the words introduced in the lesson will be added to userVocab with status = 'introduced'
+- If user mentioned they know the word, updated status = 'known'
+- 
+# Output: List of words to be insert/update
+[
+{
+        word: "涙",
+        status: "known",
+        note: "namida",
+        meaning: "tear (as in crying)",
+        language: "Japanese",
+        userId: "68381ffdfb1dda73abd84266"
+    },
+    {
+        word: "事",
+        status: "known",
+        note: "koto",
+        meaning: "thing, matter",
+        language: "Japanese",
+        userId: "68381ffdfb1dda73abd84266"
+    }
+]
 `
 
-export { mainInstruction, extractWordsInstruction };
+export { mainInstruction, extractWordsInstruction, closeLessonInstruction };
