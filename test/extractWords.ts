@@ -2,6 +2,8 @@ import { AIMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { extractWordsInstruction } from "../services/instruction";
 import UserVocab from "../models/UserVocab";
+import Message from "../models/Message";
+import Thread from "../models/Thread";
 import mongoose from "mongoose";
 import {z} from "zod" ;
 
@@ -38,7 +40,6 @@ const extractWordsFromMaterial = async (material: string): Promise<any[]> => {
         console.log("other case, return []")
     return [];
 }
-export { extractWordsFromMaterial };
 
 const getUserVocab = async (wordList: string[], userId : string) => {
         
@@ -80,85 +81,26 @@ const getUserVocab = async (wordList: string[], userId : string) => {
     // console.log("Extracted words:", words);
     
     try {
-        await UserVocab.create(
-        {
-        word: "涙",
-        status: "known",
-        note: "namida",
-        meaning: "tear (as in crying)",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "事",
-        status: "known",
-        note: "koto",
-        meaning: "thing, matter",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "後",
-        status: "known",
-        note: "ato",
-        meaning: "after, behind",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "一人",
-        status: "known",
-        note: "hitori",
-        meaning: "one person, alone",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "誰か",
-        status: "known",
-        note: "dareka",
-        meaning: "someone, anyone",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "二人",
-        status: "known",
-        note: "futari",
-        meaning: "two people",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "部屋",
-        status: "known",
-        note: "heya",
-        meaning: "room",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "悪い",
-        status: "known",
-        note: "warui",
-        meaning: "bad, poor, undesirable",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    },
-    {
-        word: "多分",
-        status: "known",
-        note: "tabun",
-        meaning: "probably, perhaps",
-        language: "Japanese",
-        userId: "68381ffdfb1dda73abd84266"
-    }
-    );
-    console.log('create dummy data successfully')
+        const testThreadId = '6847881a75b6ed847a6fa765';
+        const testUserId = '68381ffdfb1dda73abd84266';
+        const thread = await Thread.findById(testThreadId);
+
+        const material: string = typeof thread?.material === "string" ? thread.material : "";
+        if (material !== "") {
+            const wordList = await extractWordsFromMaterial(material);
+            console.log("Extracted word list:", wordList);
+
+            const userVocabBeforeLesson = await getUserVocab(wordList, testUserId);
+            console.log('userVocabBeforeLesson is ', userVocabBeforeLesson);
+        } else {
+            console.log('false to extract material');
+        }
+
     } catch (error) {
         console.log('fail to create dummy data', error)
+    }  finally {
+            await mongoose.disconnect();
     };
     
-//     const result = getUserVocab(words, "1")
 }
 )();

@@ -1,7 +1,7 @@
-import Response from "./response";
-import GraphApi from "./graph-api";
+import Response from "../services/response";
+import GraphApi from "../services/graph-api";
 import i18n from "../i18n.config";
-import config from "./config";
+import config from "../services/config";
 import { OpenAI } from "openai";
 import { ChatOpenAI, messageToOpenAIRole } from "@langchain/openai";
 import { AIMessage, BaseMessage, SystemMessage } from "@langchain/core/messages";
@@ -11,7 +11,7 @@ import { z } from "zod";
 import Thread from "../models/Thread";
 import Message from "../models/Message";
 
-import { scrapeFromAZLyrics, scrapeMiraikyun } from "./scrapeLyrics";
+import { scrapeFromAZLyrics, scrapeMiraikyun } from "../services/no need for now/scrapeLyrics";
 
 import dotenv from "dotenv";
 import { stringify } from "querystring";

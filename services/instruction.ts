@@ -47,13 +47,15 @@ const closeLessonInstruction = `
 You are a language tutor. You evaluate the thread and decide how to update userVocab as follows:
 
 # Input: 
-- List of user vocabulary
+- List of user vocabulary before the lesson
 - thread messages
 
 # Process:
 - All the words introduced in the lesson will be added to userVocab with status = 'introduced'
 - If user mentioned they know the word, updated status = 'known'
-- 
+- If user mentioned they don't know the word or ask again about the word or answer quiz wrongly, updated status = 'introduced'
+- If the word has been introduced to user before, and user answer quiz correctly, update its status to 'known'
+
 # Output: List of words to be insert/update
 [
 {
@@ -66,7 +68,7 @@ You are a language tutor. You evaluate the thread and decide how to update userV
     },
     {
         word: "事",
-        status: "known",
+        status: "introduced",
         note: "koto",
         meaning: "thing, matter",
         language: "Japanese",
