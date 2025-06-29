@@ -22,6 +22,8 @@ mongoose.connect(process.env.MONGODB_URI as string)
 
 const app = express();
 
+console.log('Tavily API Key:', process.env.TAVILY_API_KEY); // Debug
+
 const users: { [key: string]: any } = {};
 
 app.use(
