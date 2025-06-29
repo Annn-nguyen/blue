@@ -101,38 +101,56 @@ app.post("/webhook", (req: Request, res: Response) => {
             // Handle for user not saved in DB
             // If user is not Guest, get profile from Graph API
             if (!guestUser) {
-              GraphApi.getUserProfile(senderPsid)
-                .then((userProfile: any) => {
-                  return User.create({
-                    psid: senderPsid,
-                    firstName: userProfile.firstName,
-                    locale: userProfile.locale,
-                  });
-                })
-                .then((createdUser: any) => {
-                  users[senderPsid] = createdUser;
-                  console.log("User profile created:", createdUser);
-                })
-                .catch((error: any) => {
-                  console.log(JSON.stringify(body));
-                  console.log("Profile is unavailable:", error);
-                })
-                .finally(() => {
+              console.log("User not found in DB, create a new one");
+              // APP not verifed, so we cannot get user profile
+              // GraphApi.getUserProfile(senderPsid)
+              //   .then((userProfile: any) => {
+              //     return User.create({
+              //       psid: senderPsid,
+              //       firstName: userProfile.firstName,
+              //       locale: userProfile.locale,
+              //     });
+              //   })
+              //   .then((createdUser: any) => {
+              //     users[senderPsid] = createdUser;
+              //     console.log("User profile created:", createdUser);
+              //   })
+              //   .catch((error: any) => {
+              //     console.log(JSON.stringify(body));
+              //     console.log("Profile is unavailable:", error);
+              //   })
+              //   .finally(() => {
 
-                  // This sample code uses en_US 100%
-                  i18n.setLocale("en_US");
-                  console.log(
-                    "New Profile PSID:",
-                    senderPsid,
-                    "with locale:",
-                    i18n.getLocale()
-                  );
-                  return receiveAndReturn(
-                    users[senderPsid],
-                    webhookEvent,
-                    false
-                  );
+              //     // This sample code uses en_US 100%
+              //     i18n.setLocale("en_US");
+              //     console.log(
+              //       "New Profile PSID:",
+              //       senderPsid,
+              //       "with locale:",
+              //       i18n.getLocale()
+              //     );
+              //     return receiveAndReturn(
+              //       users[senderPsid],
+              //       webhookEvent,
+              //       false
+              //     );
+              //   });
+              try { 
+                const createdUser = await User.create({
+                  psid: senderPsid,
+                  firstName: "",
+                  locale: "en_US",
                 });
+                users[senderPsid] = createdUser;
+                console.log("User profile created:", createdUser);
+                return receiveAndReturn(
+                  users[senderPsid],
+                  webhookEvent,
+                  false
+                );
+              } catch (error) {
+                console.log("Error creating user:", error);
+              }
             } else {
               setDefaultUser(senderPsid);
               return receiveAndReturn(users[senderPsid], webhookEvent, false);
