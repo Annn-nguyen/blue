@@ -112,6 +112,8 @@ async function scrapeFromAZlyrics(url: string): Promise<Lyric> {
             .text()
             .trim();
 
+        console.log("Scraped lyrics from AZLyrics:", lyrics);
+
         if (lyrics.length === 0) {
             console.error("No lyrics found on AZLyrics page.");
             return {lyrics: "", error: "No lyrics found on AZLyrics."};
@@ -150,6 +152,8 @@ async function scrapeFromMiraikyun(url: string): Promise<Lyric> {
                 lyrics += text + '\n';
             };
         });
+
+        console.log("Scraped lyrics from Miraikyun:", lyrics);
 
         return { lyrics: lyrics}
     } catch (error) {
