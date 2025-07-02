@@ -22,7 +22,7 @@ interface Lyric {
 }
 const tavilyTool = new TavilySearch({maxResults: 10});
 
-async function fetchLyrics(title: string, artist: string, searchKeyword: string) :Promise<string> {
+async function fetchLyrics(title: string, artist: string, searchKeywords: string, language: string) :Promise<string> {
 
     let lyrics = 'No result';
     // try to fetch from our own catalog
@@ -76,11 +76,13 @@ async function fetchLyrics(title: string, artist: string, searchKeyword: string)
     // store lyrics scraped to our catalog
     if (lyrics != '') {
         try {
+            console.log('Saving to song catalog: ', title, ' by ', artist, ' with search keyword: ', searchKeywords, ' and language: ', language);
             await Song.create({
                 title: title,
                 artist: artist,
-                searchKeyword: searchKeyword,
-                lyrics: lyrics
+                searchKeywords: searchKeywords,
+                lyrics: lyrics,
+                language: language
             })
             console.log('SAVED TO SONG COLLECTION!')
         } catch (error) {

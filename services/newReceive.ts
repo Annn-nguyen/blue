@@ -23,7 +23,7 @@ import { timeStamp } from "console";
 dotenv.config();
 
 const model = new ChatOpenAI({
-    model: "gpt-4.1",
+    model: "gpt-4.1-mini",
 });
 
 
@@ -34,15 +34,16 @@ const fetchLyricsSchema = z.object({
     artist: z.string().describe("Artist of the song to fetch lyrics for"),
     title: z.string().describe("Title of the song to fetch lyrics for"),
     searchKeywords: z.string().describe('this include all the search keywords that can be used to search for this song, you can translate the english name to the song language to search. For example if user search for probably song by yoasobi, search keywords will be (probably, tabun, たぶん)'),
+    language: z.string().describe("Language of the song, must be in the list: English, Chinese, Japanese, Korean, French, Italian, Other"),
 });
 
 const fetchLyricsTool = tool(
-    async ({ artist, title, searchKeyword }: { artist: string, title: string, searchKeyword: string }) => {
+    async ({ artist, title, searchKeywords, language }: { artist: string, title: string, searchKeywords: string, language: string }) => {
 
         // First search for the url link of the lyrics
         let lyrics = 'No result';
         try {
-            const result = await fetchLyrics(title, artist, searchKeyword);
+            const result = await fetchLyrics(title, artist, searchKeywords, language);
             lyrics = result;
 
         } catch (error) {
@@ -233,6 +234,7 @@ export default class Receive {
                         artist: toolCall.args.artist,
                         title: toolCall.args.title,
                         searchKeywords: toolCall.args.searchKeywords,
+                        language: toolCall.args.language,
                     });
 
                     let toolResult = 'No lyrics found';

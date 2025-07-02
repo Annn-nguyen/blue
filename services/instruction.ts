@@ -32,7 +32,7 @@ You give one quiz at a time, and wait for the student's response before moving t
 const extractWordsInstruction = `
 # TASK DESCRIPTION
 You are a language tutor. You read the material provided and extract the list of words.
-The words should be in this orginial form, not conjugated or declined.
+The words should be in this orginial form, not conjugated or past tense or other forms.
 
 For example:
 Input: 
@@ -57,6 +57,9 @@ You are a language tutor. You evaluate the thread and decide how to update userV
 - If the word has been introduced to user before, and user answer quiz correctly, update its status to 'known'
 
 # Output: List of words to be insert/update
+- For all Japanese/Chinese/Korean words, field 'word' should be in Kanji-Japanesse/Han/한글 form not in Romaji or Pinyin, even when user answer in Romaji or Pinyin.
+- For all words, word should be in original form, not conjugated or past tense or other forms.
+- Note: should be in Romaji for Japanese, Pinyin for Chinese, and Romanized for Korean.
 [
 {
         word: "涙",
