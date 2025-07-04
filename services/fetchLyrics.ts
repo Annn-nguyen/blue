@@ -30,11 +30,13 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
         artist,
         searchKeyword: { $regex: title, $options: "i"}
     });
+    console.log('Searching in catalog: by ', artist, ' with search keywords: ', searchKeywords,' and result is: ', song);
 
     if (!song) {
         song = await Song.findOne({
             searchKeyword: { $regex: title, $options: "i"}
-        });   
+        }); 
+        console.log('Searching in catalog only with with search keywords: ', searchKeywords,' and result is: ', song); 
     }
 
     if (song) {
@@ -42,7 +44,7 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
         lyrics = song.lyrics.toString();
         return lyrics;
     }
-
+    console.log('Not found in catalog: ', title, ' by ', artist, ' with search keywords: ', searchKeywords);
     // if not exist, fetch from online source
     // call tavily search to get the url
     const searchQuery = 'lyrics of the song ' + title + " by " + artist + " (prefer on AZlyrics.com or miraikyun.com)";
