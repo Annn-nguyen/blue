@@ -30,13 +30,13 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
         artist,
         searchKeyword: { $regex: title, $options: "i"}
     });
-    console.log('Searching in catalog: by ', artist, ' with search keywords: ', searchKeywords,' and result is: ', song);
+    console.log('Searching in catalog: by ', artist, ' with title ', title, ' included in  search keywords: ', searchKeywords,' and result is: ', song);
 
     if (!song) {
         song = await Song.findOne({
             searchKeyword: { $regex: title, $options: "i"}
         }); 
-        console.log('Searching in catalog only with with search keywords: ', searchKeywords,' and result is: ', song); 
+        console.log('Searching in catalog only with title ',title, ' included in search keywords: ', searchKeywords,' and result is: ', song); 
     }
 
     if (song) {
