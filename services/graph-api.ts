@@ -1,5 +1,6 @@
 import config from "./config";
 import fetch, { Response } from "node-fetch";
+import { send } from "process";
 import { URL, URLSearchParams } from "url";
 
 type UserProfile = {
@@ -36,95 +37,6 @@ export default class GraphApi {
     return { sent };
   }
 
-  static async callMessengerProfileAPI(requestBody: object): Promise<void> {
-    console.log(`Setting Messenger Profile for app ${config.appId}`);
-    const url = new URL(`${config.apiUrl}/me/messenger_profile`);
-    url.search = new URLSearchParams({
-      access_token: config.pageAccesToken as string
-    }).toString();
-    let response = await fetch(url.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
-    if (response.ok) {
-      console.log(`Request sent.`);
-    } else {
-      console.warn(
-        `Unable to callMessengerProfileAPI: ${response.statusText}`,
-        await response.json()
-      );
-    }
-  }
-
-  static async callSubscriptionsAPI(customFields?: string): Promise<void> {
-    console.log(
-      `Setting app ${config.appId} callback url to ${config.webhookUrl}`
-    );
-
-    let fields =
-      "messages, messaging_postbacks, messaging_optins, " +
-      "message_deliveries, messaging_referrals";
-
-    if (customFields !== undefined) {
-      fields = fields + ", " + customFields;
-    }
-
-    console.log({ fields });
-
-    const url = new URL(`${config.apiUrl}/${config.appId}/subscriptions`);
-    url.search = new URLSearchParams({
-      access_token: `${config.appId}|${config.appSecret}`,
-      object: "page",
-      callback_url: config.webhookUrl,
-      verify_token: config.verifyToken || "",
-      fields: fields,
-      include_values: "true"
-    }).toString();
-    let response = await fetch(url.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" }
-    });
-    if (response.ok) {
-      console.log(`Request sent.`);
-    } else {
-      console.error(
-        `Unable to callSubscriptionsAPI: ${response.statusText}`,
-        await response.json()
-      );
-    }
-  }
-
-  static async callSubscribedApps(customFields?: string): Promise<void> {
-    console.log(`Subscribing app ${config.appId} to page ${config.pageId}`);
-
-    let fields =
-      "messages, messaging_postbacks, messaging_optins, " +
-      "message_deliveries, messaging_referrals";
-
-    if (customFields !== undefined) {
-      fields = fields + ", " + customFields;
-    }
-
-    console.log({ fields });
-
-    const url = new URL(`${config.apiUrl}/${config.pageId}/subscribed_apps`);
-    url.search = new URLSearchParams({
-      access_token: config.pageAccesToken as string,
-      subscribed_fields: fields
-    }).toString();
-    let response = await fetch(url.toString(), {
-      method: "POST"
-    });
-    if (response.ok) {
-      console.log(`Request sent.`);
-    } else {
-      console.error(
-        `Unable to callSubscribedApps: ${response.statusText}`,
-        await response.json()
-      );
-    }
-  }
 
   static async getUserProfile(senderIgsid: string): Promise<UserProfile | null> {
     const url = new URL(`${config.apiUrl}/${senderIgsid}`);
@@ -152,107 +64,53 @@ export default class GraphApi {
     }
   }
 
-  static async getPersonaAPI(): Promise<any> {
-    console.log(`Fetching personas for app ${config.appId}`);
+  static async sendTyping(senderpsid: string, type: string): Promise<void> {
+    // construct the api url
+    const url = new URL(`${config.apiUrl}/me/messages`);
 
-    const url = new URL(`${config.apiUrl}/me/personas`);
+    // add the query parameters
     url.search = new URLSearchParams({
       access_token: config.pageAccesToken as string
     }).toString();
-    let response = await fetch(url.toString());
-    if (response.ok) {
-      let body = await response.json();
-      return body.data;
-    } else {
-      console.warn(
-        `Unable to fetch personas for ${config.appId}: ${response.statusText}`,
-        await response.json()
-      );
-      return null;
-    }
-  }
 
-  static async postPersonaAPI(name: string, profile_picture_url: string): Promise<string | undefined> {
-    const requestBody = {
-      name,
-      profile_picture_url
+    console.warn("Sending typing_on action to " + senderpsid);
+    
+    // construct the request body
+    let senderAction = "typing_on";
+    if (type !== "on" && type !== "off") {
+      console.warn(`Invalid type: ${type}. Only 'typing_on' or 'typing_off' are allowed.`);
+      return;
+    } else if (type === "on") {
+      senderAction = "typing_on";
+
+    } else if (type === "off") {
+      senderAction = "typing_off";
     };
-    console.log(`Creating a Persona for app ${config.appId}`);
-    console.log({ requestBody });
-    const url = new URL(`${config.apiUrl}/me/personas`);
-    url.search = new URLSearchParams({
-      access_token: config.pageAccesToken as string
-    }).toString();
-    let response = await fetch(url.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
-    if (response.ok) {
-      console.log(`Request sent.`);
-      let json = await response.json();
-      return json.id;
-    } else {
-      console.error(
-        `Unable to postPersonaAPI: ${response.statusText}`,
-        await response.json()
-      );
-    }
-  }
-
-  static async callNLPConfigsAPI(): Promise<void> {
-    console.log(`Enable Built-in NLP for Page ${config.pageId}`);
-
-    const url = new URL(`${config.apiUrl}/me/nlp_configs`);
-    url.search = new URLSearchParams({
-      access_token: config.pageAccesToken as string,
-      nlp_enabled: "true"
-    }).toString();
-    let response = await fetch(url.toString(), {
-      method: "POST"
-    });
-    if (response.ok) {
-      console.log(`Request sent.`);
-    } else {
-      console.error(`Unable to activate built-in NLP: ${response.statusText}`);
-    }
-  }
-
-  static async reportLeadSubmittedEvent(psid: string): Promise<void> {
-    const url = new URL(`${config.apiUrl}/${config.appId}/page_activities`);
-    url.search = new URLSearchParams({
-      access_token: config.pageAccesToken as string
-    }).toString();
     const requestBody = {
-      custom_events: [
-        {
-          _eventName: "lead_submitted"
-        }
-      ],
-      advertiser_tracking_enabled: 1,
-      application_tracking_enabled: 1,
-      page_id: config.pageId,
-      page_scoped_user_id: psid,
-      logging_source: "messenger_bot",
-      logging_target: "page"
+      recipient: { id: senderpsid },
+      sender_action: "typing_on"
     };
-    console.warn(
-      "Request to " + url + "\nWith body:\n" + JSON.stringify(requestBody)
-    );
+
+    // send the request
+    let response: Response;
     try {
-      let response = await fetch(url.toString(), {
+      response = await fetch(url.toString(), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type":"application/json" },
         body: JSON.stringify(requestBody)
-      });
-      if (!response.ok) {
+      })
+
+      if (! response.ok) {
         console.warn(
-          `Unable to call App Event API: ${response.statusText}`,
-          await response.json()
+          `Unable to send typing on action: ${response.statusText}`, await response.json()
         );
+      } else {
+        console.log(`Typing on action sent to ${senderpsid}.`);
       }
     } catch (error) {
-      console.error("Error while reporting lead submitted", error);
+      console.error(`Error sending typing on action to ${senderpsid}:`, error);
     }
   }
+
+ 
 }

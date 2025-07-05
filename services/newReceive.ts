@@ -407,6 +407,10 @@ export default class Receive {
                 console.log("Event: ", event);
                 console.log("Is user ref: ", this.isUserRef);
 
+                // send typing on action
+                await GraphApi.sendTyping(this.user.psid, "on");
+
+                // handle text message
                 response = await this.handleTextMessage();
             }
         } catch (error) {
@@ -536,6 +540,10 @@ export default class Receive {
             message: { text: message },
         };
         try {
+            // send typing off action
+            await GraphApi.sendTyping(this.user.psid, "off");
+
+            // Send the message using Graph API
             const sent = await GraphApi.callSendApi(requestBody);
             if (sent) {
                 console.log("Message sent successfully");
