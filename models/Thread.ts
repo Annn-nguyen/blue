@@ -9,6 +9,7 @@ export interface IThread extends Document {
     status: String;
     startTime? : Date;
     messages? : mongoose.Types.ObjectId[];
+    vocabUpdate?: String; // to store the vocab update result after closing the lesson
 };
 
 const threadSchema = new Schema<IThread>({
@@ -19,7 +20,8 @@ const threadSchema = new Schema<IThread>({
     psid: {type: String},
     status: {type: String, enum : ["open", "close"], required: true, default: "open"},
     startTime:{type: Date, default: Date.now  },
-    messages: [{type: mongoose.Types.ObjectId, ref: 'Message'}]
+    messages: [{type: mongoose.Types.ObjectId, ref: 'Message'}],
+    vocabUpdate: {type: String} 
 });
 
 export default mongoose.model<IThread>('Thread', threadSchema);

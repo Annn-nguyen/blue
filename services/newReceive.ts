@@ -20,6 +20,7 @@ import { request } from "express";
 import { raw } from "body-parser";
 import { threadId } from "worker_threads";
 import { timeStamp } from "console";
+import { readSync } from "fs";
 dotenv.config();
 
 const model = new ChatOpenAI({
@@ -341,46 +342,8 @@ export default class Receive {
             await Thread.findByIdAndUpdate(threadId, {status : "closed"});
             console.log('status updated as closed');
 
-            // get 10 message at a time and call reviewLesson to update userVocab
-            const pageSize = 10;
-            let page = 0;
-            let hasMore = true;
-
-            while (hasMore) {
-                // get message from thread with predefined pageSize 
-                const rawThreadMessages = await Message.find({ threadId })
-                    .sort({ timeStamp: 1 })
-                    .skip(page * pageSize)
-                    .limit(pageSize);
-
-                // if no item, break the loop
-                if (rawThreadMessages.length === 0) {
-                    break;
-                }
-
-                // format these chatHistory
-                const messages = rawThreadMessages
-                    .map((message) => `At ${message.timestamp} from ${message.sender} : ${message.text}`)
-                    .join('\n');
-
-                // run through reviewLesson
-                const result = await reviewLesson(messages, userId, vocabBeforeLesson);
-                if (result) {
-                    console.log('Review lesson successfully for page ', page);
-                } else {
-                    console.log('FAIL to review lesson for page ', page);
-                }
-
-                // check whether this is the last page
-                if (messages.length < pageSize) {
-                    console.log('DONE - Vocab Updated!!');
-                    hasMore = false;
-                } else {
-                    page++;
-                }
-
-
-            }
+            // go through review lesson
+            const result = await reviewLesson(threadId, userId, vocabBeforeLesson);
 
         } catch (error) {
             console.log("Something went wrong", error);

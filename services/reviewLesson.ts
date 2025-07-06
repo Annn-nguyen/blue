@@ -7,6 +7,8 @@ import UserVocab from '../models/UserVocab';
 
 import { z } from 'zod';
 import { closeLessonInstruction } from './instruction';
+import { timeStamp } from 'console';
+import { raw } from 'body-parser';
 
 const model = new ChatOpenAI({
     model: 'gpt-4.1-mini'
@@ -25,11 +27,53 @@ const vocabArraySchema = z.object({
     vocabs: z.array(vocabSchema).describe('list of words to update to user vocab')
 });
 
+async function reviewLesson(threadId: string, userId: string, vocabBeforeLesson: string): Promise<boolean> {
+    try {
+        let vocabUpdate = '';
 
+        // retrieve all thread messages
+        const allMessages = await Message.find({threadId: threadId})
+            .sort({timeStamp: 1})
+        
+        const pageSize = 10;
+        let page = 0;
 
-async function reviewLesson(chatHistory: string, userId: string, vocabBeforeLesson: string): Promise<boolean> {
-    let result = false;
+        // apply reviewEachPart to each page in allMessages
+        while (page*pageSize < allMessages.length) {
+            const batchMessages = allMessages.slice(page*pageSize, (page+1)*pageSize);
 
+            // prepare chat history for this batch
+            const messages = batchMessages
+                .map((message) => `At ${message.timestamp} from ${message.sender}: ${message.text}`)
+                .join('\n');
+            
+            const vocabAdded = await reviewEachPart(messages, userId, vocabBeforeLesson, threadId);
+
+            console.log(`Review lesson successfully for page ${page}`);
+
+            vocabUpdate = vocabUpdate + vocabAdded;
+            page++;
+        }
+
+        // save vocab update to thread
+        await Thread.updateOne(
+            {_id: threadId},
+            {$set: { vocabUpdate: vocabUpdate}}
+        );
+
+        console.log('Update Thread.vocabUpdate successfully');
+        return true;
+
+    } catch (error) {
+        console.log('Error in reviewLesson: ', error);
+        return false;
+    }
+    
+
+}
+
+async function reviewEachPart(chatHistory: string, userId: string, vocabBeforeLesson: string, threadId: string): Promise<string> {
+    let result = '';
     const humanMessage = `
     UserId is: ${userId}
 
@@ -38,7 +82,7 @@ async function reviewLesson(chatHistory: string, userId: string, vocabBeforeLess
     Chat thread:
     ${chatHistory}
     `
-
+    console.log('REVIEWING THIS PART ', chatHistory);
     try {
 
         //invoke model to review chat data and update userVocab
@@ -47,6 +91,7 @@ async function reviewLesson(chatHistory: string, userId: string, vocabBeforeLess
             new HumanMessage(humanMessage)
         ]);
         console.log('Vocab update as ', response);
+
 
         // update Vocab to database
         for (const item of response.vocabs) {
@@ -64,7 +109,8 @@ async function reviewLesson(chatHistory: string, userId: string, vocabBeforeLess
             )
 
         }
-        result = true;
+    
+        result = JSON.stringify(response.vocabs);
 
     } catch(error) {
         console.log('Something went wrong in review lesson ',error);
