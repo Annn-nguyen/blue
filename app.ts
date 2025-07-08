@@ -11,6 +11,7 @@ import GraphApi from "./services/graph-api";
 import User from "./models/User";
 import config from "./services/config";
 import i18n from "./i18n.config";
+import './services/reminderCron';
 
 
 
@@ -64,6 +65,48 @@ app.get("/webhook", (req: Request, res: Response) => {
     }
   }
 });
+
+// Add get started
+
+// Add persistent menu
+app.get('/profile/persistent-menu', async (_req: Request, res: Response) => {
+  
+  const menuData = {
+    persistent_menu: [
+      {
+        locale: 'default',
+        composer_input_disabled: false,
+        call_to_actions: [
+          {
+            type: 'postback',
+            title: 'Remind Daily Practice',
+            payload: "SET_DAILY_REMINDER"
+          },
+          {
+            type: 'web_url',
+            title: 'Privacy Policy',
+            url: 'https://starpy.wordpress.com/2025/06/27/privacy-policy-for-blue-gentle-comet/',
+            webview_height_ratio: 'full'
+          }
+        ]
+      }
+    ]
+  };
+  try {
+    // set get started first
+    const getStart = await GraphApi.setGetStarted();
+    console.log('Set get started successfully');
+    // set persistent menu 
+    const result = await GraphApi.setPersistentMenu(menuData);
+    res.json(result);
+    console.log('Set persistent menu for messenger successfully');
+
+  } catch (error: any) {
+    res.status(500).json({error: error.message})
+  }
+}
+
+)
 
 // Add support for POST requests to our webhook
 app.post("/webhook", (req: Request, res: Response) => {
@@ -137,7 +180,7 @@ app.post("/webhook", (req: Request, res: Response) => {
               //       false
               //     );
               //   });
-              try { 
+              try {
                 const createdUser = await User.create({
                   psid: senderPsid,
                   firstName: "",
@@ -241,7 +284,10 @@ const listener = app.listen(config.port, () => {
       "Make sure to set the Messenger profile and webhook by visiting:\n" +
       config.appUrl +
       "/profile?mode=all&verify_token=" +
-      config.verifyToken
+      config.verifyToken + "\n" + 
+      "Make sure to set the persistent menu by visiting: \n" +
+      config.appUrl +
+      "/profile/persistent-menu"
     );
   }
 

@@ -10,6 +10,7 @@ import Thread from "../models/Thread";
 import Message from "../models/Message";
 import UserVocab from "../models/UserVocab";
 import Song from "../models/Song";
+import Reminder from "../models/Reminder";
 
 import { mainInstruction, extractWordsInstruction, closeLessonInstruction } from "./instruction";
 import { reviewLesson } from "./reviewLesson";
@@ -362,9 +363,25 @@ export default class Receive {
             console.log("Reaction event ignored");
             return;
         }
+        
+        
 
         try {
-            if (event.message) {
+            
+            if (event.postback) {
+                // handle postback
+                console.log('Start handle postback');
+                console.log("User: ", this.user);
+                console.log("Event: ", event);
+
+                // send typing on action
+                await GraphApi.sendTyping(this.user.psid, "on");
+
+                response = await this.handlePostBack();
+
+
+            } else if (event.message) {
+                // handle text msg
                 console.log("Start handle text message");
                 console.log("User: ", this.user);
                 console.log("Event: ", event);
@@ -411,7 +428,8 @@ export default class Receive {
         await this.saveUserMessage(thread._id, this.user.psid, this.webhookEvent.message.text);
         const chatHistory = await this.getChatHistory(thread._id);
 
-
+        
+        
         // Check if the user wants to close the lesson
 
         const closeLessonKeywords = ["close lesson", "end lesson", "finish lesson", "stop lesson"];
@@ -496,6 +514,31 @@ export default class Receive {
 
     }
 
+    async handlePostBack(): Promise<{message: string, threadId: string}>{
+        let message = 'Some error happened while handling your request';
+        const event = this.webhookEvent
+        const thread = await this.getThread(this.user.psid);
+        await this.saveUserMessage(thread._id, this.user.psid, this.webhookEvent.postback.payload);
+
+        if (event.postback.payload === 'GET_STARTED') {
+            // send a simple hellp
+            message = 'Hello welcome you to this gentle comet!';
+            
+
+        } else if (event.postback.payload === 'SET_DAILY_REMINDER') {
+            // set reminder for that user
+            try {
+                this.setReminder(this.user.psid, 'on');
+                message = 'Reminder set up at 7:30 everyday!'
+
+            } catch (error) {
+                console.log('Error while setting reminder ', error);
+            }
+
+        }
+        return { message: message, threadId : thread.threadId};
+    }
+
     async sendMessage(message: string, threadId: string): Promise<void> {
 
         const requestBody = {
@@ -518,6 +561,31 @@ export default class Receive {
             }
         } catch (error) {
             console.error("Error sending message:", error);
+        }
+    }
+
+    async setReminder(psid: string, status: string): Promise<void>{
+        // set reminder for a user
+        try {
+            const existingReminder = await Reminder.findOne({psid});
+
+            if (!existingReminder) {
+                // create new
+                const newReminder = await Reminder.create({
+                    psid: psid,
+                    status: status,
+                    time: '07:30',
+                    timezone: 'Asia/Bangkok'
+                });
+                console.log('New reminder created ', newReminder);
+                
+            } else {
+                // update only the status field
+                await Reminder.updateOne({psid}, {status});
+                console.log('Reminder updated');
+            }
+        } catch(error) {
+            console.log('Error happen when trying to set reminder ', error);
         }
     }
 

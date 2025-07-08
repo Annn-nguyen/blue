@@ -112,5 +112,54 @@ export default class GraphApi {
     }
   }
 
+  static async setPersistentMenu(menuData: object):Promise<any>{
+    const url = new URL(`${config.apiUrl}/me/messenger_profile`);
+    url.search = new URLSearchParams({
+      access_token: config.pageAccesToken as string
+    }).toString();
+
+    // call api
+    let response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(menuData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.warn(`Unable to set persistent menu: ${response.statusText}`);
+      throw new Error(error.error?.message || 'Failed to set persistent menu');
+    }
+
+    return response.json
+
+  }
+
+  static async setGetStarted():Promise<void>{
+    const url = new URL(`${config.apiUrl}/me/messenger_profile`);
+    url.search = new URLSearchParams({
+      access_token: config.pageAccesToken as string
+    }).toString();
+    
+    const body = {
+      "get_started": {
+          "payload": "GET_STARTED"
+      }
+    };
+
+    let response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+
+    })
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.warn(`Unable to set persistent menu: ${response.statusText}`, error);
+      throw new Error(error.error?.message || "Failed to set persistent menu");
+    }
+    return response.json();
+  }
  
 }
