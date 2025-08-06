@@ -16,4 +16,4 @@ const messageSchema = new Schema<IMessage>({
     timestamp : { type: Date, required: true, default : Date.now }
 });
 
-export default mongoose.model<IMessage>('Message', messageSchema);;
+export const Message = mongoose.model<IMessage>('Message', messageSchema);;

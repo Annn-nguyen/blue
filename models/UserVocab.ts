@@ -22,4 +22,4 @@ const userVocabSchema = new Schema<IUserVocab>({
     createdAt: { type: Date, default: Date.now }
 });
 
-export default mongoose.model<IUserVocab>('UserVocab', userVocabSchema);
+export const UserVocab = mongoose.model<IUserVocab>('UserVocab', userVocabSchema);

@@ -6,7 +6,7 @@ import Message from '../models/Message';
 import UserVocab from '../models/UserVocab';
 import mongoose from 'mongoose';
 
-import { reviewLesson } from '../services/reviewLesson';
+import { reviewLesson } from '../z.Old/reviewLesson';
 
 
 dotenv.config();

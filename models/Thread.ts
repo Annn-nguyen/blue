@@ -18,10 +18,10 @@ const threadSchema = new Schema<IThread>({
     userVocab: { type : String},
     userId: {type: String},
     psid: {type: String},
-    status: {type: String, enum : ["open", "close"], required: true, default: "open"},
+    status: {type: String, enum : ["open", "closed"], required: true, default: "open"},
     startTime:{type: Date, default: Date.now  },
     messages: [{type: mongoose.Types.ObjectId, ref: 'Message'}],
     vocabUpdate: {type: String} 
 });
 
-export default mongoose.model<IThread>('Thread', threadSchema);
+export const Thread =  mongoose.model<IThread>('Thread', threadSchema);
