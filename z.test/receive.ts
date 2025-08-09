@@ -1,4 +1,4 @@
-import Response from "../services/response";
+import Response from "../z.Old/response";
 import GraphApi from "../services/graph-api";
 import i18n from "../i18n.config";
 import config from "../services/config";

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Thread from "../models/Thread";
 import UserVocab from "../models/UserVocab";
-import { fetchLyrics } from "../services/fetchLyrics";
+import { fetchLyrics } from "../utilities/fetchLyrics";
 
 import dotenv from "dotenv";
 

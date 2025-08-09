@@ -13,8 +13,8 @@ import Song from "../models/Song";
 import Reminder from "../models/Reminder";
 
 import { mainInstruction, extractWordsInstruction, closeLessonInstruction } from "./instruction";
-import { reviewLesson } from "./reviewLesson";
-import { fetchLyrics, scrapeFromAZlyrics, scrapeFromMiraikyun } from "./fetchLyrics";
+import { reviewLesson } from "../z.Old/reviewLesson";
+import { fetchLyrics, scrapeFromAZlyrics, scrapeFromMiraikyun } from "../utilities/fetchLyrics";
 
 import dotenv from "dotenv";
 import { request } from "express";

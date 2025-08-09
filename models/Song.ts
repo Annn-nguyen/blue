@@ -6,6 +6,7 @@ export interface ISong extends Document {
     lyrics: String,
     language: String,
     searchKeywords: String,
+    createdAt: Date
 };
 
 const songSchema = new Schema<ISong>({
@@ -13,7 +14,9 @@ const songSchema = new Schema<ISong>({
     artist: {type: String, required: true},
     lyrics: {type: String, required: true},
     language: {type: String, enum:["English", "Chinese", "Japanese", "Korean",  "French", "Italian", "Other"], required: true },
-    searchKeywords: {type: String, default: ''}
+    searchKeywords: {type: String, default: ''},
+    createdAt: {type: Date, required: true, default: Date.now}
+
 });
 
-export default mongoose.model<ISong>('Song', songSchema);
+export const Song = mongoose.model<ISong>('Song', songSchema);

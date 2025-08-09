@@ -6,7 +6,7 @@ import Thread from '../models/Thread';
 import UserVocab from '../models/UserVocab';
 
 import { z } from 'zod';
-import { closeLessonInstruction } from './instruction';
+import { closeLessonInstruction } from '../services/llmconfig';
 import { timeStamp } from 'console';
 import { raw } from 'body-parser';
 

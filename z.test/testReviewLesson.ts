@@ -1,12 +1,12 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { SystemMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
-import { closeLessonInstruction } from '../services/instruction';
+import { closeLessonInstruction } from '../services/llmconfig';
 import dotenv from 'dotenv';
 import Message from '../models/Message';
 import UserVocab from '../models/UserVocab';
 import mongoose from 'mongoose';
 
-import { reviewLesson } from '../services/reviewLesson';
+import { reviewLesson } from '../z.Old/reviewLesson';
 
 
 dotenv.config();
