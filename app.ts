@@ -14,7 +14,7 @@ app.use(express.json());
 
 
 // routes
-app.use('/api', routes);
+app.use('', routes);
 
 // start server
 const start = async () => {
