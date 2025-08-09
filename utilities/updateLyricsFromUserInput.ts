@@ -75,7 +75,7 @@ export  const updateLyricsFromUserInputTool = tool(
             return result;
     },
     {
-        name: "updateLyricsFromUserInput",
+        name: "updateLyricsFromUserInputTool",
         description: "Update lyrics provided by user to system",
         schema: updateLyricsFromUserInputSchema,
     }

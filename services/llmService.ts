@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
-import { IThread } from '../models/Thread';
-import { mainInstruction, extractWordsInstruction, closeLessonInstruction } from './instruction';
+import { IThread, Thread } from '../models/Thread';
+import { generateResponseModel, generateResponseIns, breakdownVocabModel, breakdownVocabIns, reviewPartModel, reviewPartIns, genQuizModel, genQuizIns } from './llmconfig';
 import { ChatOpenAI } from '@langchain/openai';
 import { SystemMessage, AIMessage, ToolMessage, HumanMessage, BaseMessage } from '@langchain/core/messages';
 
@@ -10,16 +10,31 @@ import { fetchLyricsTool, fetchLyrics} from '../utilities/fetchLyrics';
 import { updateLyricsFromUserInput, updateLyricsFromUserInputTool } from '../utilities/updateLyricsFromUserInput';
 import { IUser } from '../models/User';
 import { response } from 'express';
+import { UserVocab } from '../models/UserVocab';
+import MessageService from './messageService';
 
 
 
 dotenv.config();
 
+const vocabSchema = z.object({
+    userId: z.string().describe('_id of the user'),
+    word: z.string().describe('the word to learn, if japanese or chinese, return kanji'),
+    note: z.string().describe('note for the word: for japanese/chinese/korean, note its romanji'),
+    meaning: z.string().describe('meaning of the word in the language of the learner'),
+    status: z.enum(["introduced", "known"]).describe('status of the word'),
+    language: z.enum(["English", "Chinese", "Japanese", "Korean", "French", "Italian"]).describe('language of the word')
+});
+
+const vocabArraySchema = z.object({
+    vocabs: z.array(vocabSchema).describe('list of words to update to user vocab')
+});
+
 
 export default class LLMService {
     static async generateResponse(chatHistory: string, thread: IThread, user: IUser):Promise<string> {
         // initate model with its tools
-        const model = new ChatOpenAI({ model : 'gpt-4.1-mini'});
+        const model = new ChatOpenAI({ model : generateResponseModel});
         const tools = [fetchLyricsTool, updateLyricsFromUserInputTool]
         const modelWithTool = model.bindTools(tools);
 
@@ -28,11 +43,12 @@ export default class LLMService {
         const userVocab = thread?.userVocab ? thread.userVocab : 'No data available';
         const lyrics = thread?.material ? thread.material : 'No data available'
 
-        const instruction = mainInstruction;        
+        const instruction = generateResponseIns;        
 
         const context = `
 # *Context is:*
 *threadId*: ${thread._id}
+*userId*: ${user._id}
 \n
 *Chat history:*
 ${chatHistory}
@@ -147,7 +163,7 @@ ${userVocab}
 
     static async breakdownVocab(text: string): Promise<string[]|null> {
         const model = new ChatOpenAI({
-                model: 'gpt-4.1-mini'
+                model: breakdownVocabModel
             });
         
             const outputSchema = z.object({
@@ -155,7 +171,7 @@ ${userVocab}
             });
         
             try {
-                const response = await model.withStructuredOutput(outputSchema).invoke([new SystemMessage(extractWordsInstruction), new HumanMessage(text)]);
+                const response = await model.withStructuredOutput(outputSchema).invoke([new SystemMessage(breakdownVocabIns), new HumanMessage(text)]);
                 console.log('Extracted words: ', response);
                 if ('words' in response) {
                     return response.words;
@@ -168,11 +184,70 @@ ${userVocab}
             }
     }
 
-    static async reviewThread(prompt: string): Promise<string> {
-        return '';
+
+
+    static async reviewPart(chatHistory: string, vocabBeforeLesson: string, userId: string): Promise<string> {
+        let result = '';
+        const model = new ChatOpenAI({model: reviewPartModel});
+        const context = `
+UserId is ${userId}
+\n
+Vocab before thread: ${vocabBeforeLesson}
+\n
+Chat thread:
+${chatHistory}
+`;
+        console.log('REVIEWING this part: ', chatHistory);
+        try {
+            console.log('Call model to review');
+            const response = await model.withStructuredOutput(vocabArraySchema).invoke([ 
+                new SystemMessage(reviewPartIns),
+                new HumanMessage(context)
+            ]);
+            console.log('Model response is ', response);
+
+            // update Vocab to database 
+            for (const item of response.vocabs) {
+                await UserVocab.updateOne(
+                    {userId, word: item.word},
+                    {
+                        $set: {
+                            status: item.status, 
+                            note: item.note || "",
+                            meaning: item.meaning,
+                            language: item.language
+                        }
+                    },
+                    { upsert: true}
+                )
+            }
+            console.log('Update vocab successfully')
+            result = JSON.stringify(response.vocabs);
+        } catch(error) {
+            console.error('Error while reviewing each part of thread');
+        }
+
+        return result;
+        
     }
 
-    static async generateReminder(prompt: string): Promise<string> {
-        return '';
+    // func to generate quiz to send in reminder to study 
+    static async genQuiz(lyrics: string): Promise<string> {
+        let result = '';
+        const model = new ChatOpenAI({model: genQuizModel});
+        const context =`
+Song lyrics is:
+${lyrics}
+`;
+        try {
+            const response = await model.invoke([ new SystemMessage(genQuizIns), new HumanMessage(context)]);
+            console.log('Response from AI', response);
+            
+            result = response.content.toString();
+        } catch(error) {
+            console.error('Error when AI gen quiz ', error);
+        }
+
+        return result;
     }
 }

@@ -3,8 +3,23 @@ import {Message, IMessage} from '../models/Message';
 import GraphApi from './graph-api';
 
 export default class MessageService {
-    static async sendMessage():Promise<void>{
+    static async sendMessage(message: string, threadId: string, psid: string):Promise<void>{
+        try {
+            const requestBody = {
+                    recipient: { id: psid },
+                    message: { text: message },
+            };
+            const sendResult = await GraphApi.callSendApi(requestBody);
 
+            // save bot msg
+            if (sendResult) {
+                await this.saveBotMessage(threadId, message);
+            }
+            console.log('Bot msg sent AND saved!')
+
+        } catch(error) {
+            console.error('Error while sending message!')
+        }
     };
 
     static async saveUserMessage(threadId: string, userId: string, text: string):Promise<boolean>{
@@ -53,9 +68,10 @@ export default class MessageService {
             if (size) {
                 result = await Message.find({threadId})
                 .limit(size)
-                .sort({timestamp:1})
+                .sort({timestamp:1});
             } else {
-                result = await Message.find({threadId});
+                result = await Message.find({threadId})
+                .sort({timestamp: 1});
             }
         } catch(error) {
             console.error(`Error getting chat history ${error}`);

@@ -11,7 +11,7 @@ import GraphApi from "../services/graph-api";
 import User from "../models/User";
 import config from "../services/config";
 import i18n from "../i18n.config";
-import '../services/reminderCron';
+import './reminderCron';
 
 
 

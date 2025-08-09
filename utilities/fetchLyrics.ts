@@ -23,7 +23,8 @@ const tavilyTool = new TavilySearch({maxResults: 10});
 async function fetchLyrics(title: string, artist: string, searchKeywords: string, language: string, threadId: string, userId: string) :Promise<string> {
 
     let lyrics = '';
-    // try to fetch from our own catalog
+    try {
+        // try to fetch from our own catalog
     let song = await Song.findOne({
         artist,
         searchKeywords: { $regex: title, $options: "i"}
@@ -70,14 +71,7 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
             }
         }
 
-        console.log('Lyrics scraped: ', lyrics);
-    }
-    
-
-    // if lyrics found 
-    if (lyrics != '') {
-        try {
-            // store lyrics scraped to our catalog
+        // store lyrics scraped to our catalog
             console.log('Saving to song catalog: ', title, ' by ', artist, ' with search keyword: ', searchKeywords, ' and language: ', language);
             await Song.create({
                 title: title,
@@ -88,7 +82,13 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
             })
             console.log('SAVED TO SONG COLLECTION!')
 
-            // analyze vocab of the song 
+        console.log('Lyrics scraped: ', lyrics);
+    }
+    
+
+    // if lyrics found 
+    if (lyrics != '') {
+        // analyze vocab of the song 
             const wordList = await LLMService.breakdownVocab(lyrics);
             console.log('Song words breakdown: ', wordList);
 
@@ -102,12 +102,9 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
             });
 
             console.log('Thread updated successfully');
-
-
-
-        } catch (error) {
-            console.log('Error while saving to song catalog/extract word: ', error)
-        }
+    } 
+    } catch (error) {
+        console.error('Error while running fetch lyrics!');
     }
 
     if (lyrics === '') {

@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import Reminder from '../models/Reminder';
-import GraphApi from './graph-api';
+import GraphApi from '../services/graph-api';
 import User from '../models/User';
 import Thread from '../models/Thread';
 import Message from '../models/Message';

@@ -1,6 +1,6 @@
 import { AIMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
-import { extractWordsInstruction } from "../services/instruction";
+import { extractWordsInstruction } from "../services/llmconfig";
 import UserVocab from "../models/UserVocab";
 import Message from "../models/Message";
 import Thread from "../models/Thread";

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import config from './services/config';
 import routes from './routes';
+import { startReminderCron } from './jobs/reminderCron';
 
 dotenv.config();
 
@@ -17,14 +18,16 @@ app.use('/api', routes);
 
 // start server
 const start = async () => {
-  // connect database 
-  mongoose.connect(process.env.MONGODB_URI as string)
-    .then(() => {console.log('MongoDB connected successfully'); })
-    .catch((err: Error) => { console.error('MongoDB connection error: ', err); });
-
   
   try {
-    // run reminder
+    // connect database 
+    mongoose.connect(process.env.MONGODB_URI as string)
+      .then(() => {console.log('MongoDB connected successfully'); })
+      .catch((err: Error) => { console.error('MongoDB connection error: ', err); });
+
+    // start cron job
+    startReminderCron();
+    console.log('Cron job start');
 
     // parse application/json, verify callback came from facebook? do we need
 
