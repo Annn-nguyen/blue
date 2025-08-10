@@ -45,7 +45,7 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
         console.log('Not found in catalog: ', title, ' by ', artist, ' with search keywords: ', searchKeywords);
         // if not exist, fetch from online source
         // call tavily search to get the url
-        const searchQuery = 'lyrics of the song ' + title + " by " + artist + " (prefer on AZlyrics.com or miraikyun.com)";
+        const searchQuery = 'lyrics of the song ' + title + " by " + artist + " (prefer on AZlyrics.com, miraikyun.com, letras.com )";
         const searchResult = await tavilyTool.invoke({query: searchQuery});
         console.log('Tavily lyrics search result: ', searchResult)
 
@@ -64,6 +64,15 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
             if (item.url.includes('miraikyun.com')) {
                 console.log('SCRAPING from miraikyun');
                 const result = await scrapeFromMiraikyun(item.url);
+                if (result.lyrics) {
+                    lyrics = result.lyrics;
+                    break;
+                }
+            }
+
+            if (item.url.includes('letras.com')) {
+                console.log('SCRAPING from letras');
+                const result = await scrapeFromLetras(item.url);
                 if (result.lyrics) {
                     lyrics = result.lyrics;
                     break;
@@ -182,6 +191,34 @@ async function scrapeFromMiraikyun(url: string): Promise<Lyric> {
         return { lyrics: "", error: `Miraikyun scraping error: ${String(error)}` };
     }
 
+}
+
+async function scrapeFromLetras(url: string): Promise<Lyric> {
+    try {
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        };
+        const response = await axios.get(url, { headers });
+
+        if (response.status !== 200) {
+            console.error("Failed to fetch data from Letras. Status code:", response.status);
+            return { lyrics: "", error: "Failed to fetch data from Letras." };
+        }
+
+        const content = cheerio.load(response.data);
+        const lyrics = content('div.cnt-letra').text().trim();
+
+        console.log("Scraped lyrics from Letras:", lyrics);
+
+        if (lyrics.length === 0) {
+            console.error("No lyrics found on Letras page.");
+            return { lyrics: "", error: "No lyrics found on Letras." };
+        }
+        return { lyrics: lyrics };
+    } catch (error) {
+        console.error("Error scraping Letras:", error);
+        return { lyrics: "", error: `Letras scraping error: ${String(error)}` };
+    }
 }
 
 
