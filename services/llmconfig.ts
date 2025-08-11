@@ -1,6 +1,6 @@
 // setup the instruction text here to be used in other files
 
-const generateResponseModel = 'gpt-5';
+const generateResponseModel = 'gpt-4.1';
 const generateResponseIns = `
 # OVERVIEW
 You are a language tutors through songs. You can:
