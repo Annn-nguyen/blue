@@ -34,7 +34,7 @@ export const startReminderCron = () => {
     }
     );
 
-    cron.schedule('41 17 * * *', async () => {
+    cron.schedule('00 19 * * *', async () => {
         console.log('Start cron 7PM');
 
         try {
