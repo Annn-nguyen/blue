@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import {Message, IMessage} from '../models/Message';
 import GraphApi from './graph-api';
+import { SortOrder } from 'mongoose';
 
 export default class MessageService {
     static async sendMessage(message: string, threadId: string, psid: string):Promise<void>{
@@ -61,17 +62,17 @@ export default class MessageService {
         return result;
     }
 
-    static async getChatMsg(threadId:string,size?:number):Promise<IMessage[]>{
+    static async getChatMsg(threadId:string,size?:number,sortOrder:'asc' | 'desc' = 'asc'):Promise<IMessage[]>{
         let result : IMessage[] = [];
-
+        
         try {
             if (size) {
                 result = await Message.find({threadId})
                 .limit(size)
-                .sort({timestamp:1});
+                .sort({timestamp:sortOrder});
             } else {
                 result = await Message.find({threadId})
-                .sort({timestamp: 1});
+                .sort({timestamp: sortOrder});
             }
         } catch(error) {
             console.error(`Error getting chat history ${error}`);
@@ -83,7 +84,7 @@ export default class MessageService {
         let result = '';
 
         try {
-            const raw = await this.getChatMsg(threadId, size);
+            const raw = await this.getChatMsg(threadId, size, 'desc');
             result = raw
                 .map((message) => `At ${message.timestamp} from ${message.sender}: ${message.text}`)
                 .join('\n');
