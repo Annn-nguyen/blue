@@ -93,11 +93,11 @@ Extract all the words from the thread messages according to following rules: (wo
     }
 ]
 `;
-const genQuizModel = 'gpt-4.1-mini';
+const genQuizModel = 'gpt-4.1';
 const genQuizIns = `
 Generate a vocabulary quiz for your student based on the lyrics provided (preferred using Kanji/Han/한글 form in the lyrics if any). The quiz must be less than 200 words AND open ended and have structure as follows:
 - A greeting: come up with a friendly reminder greeting to the student.
-- 1 part ask about a RANDOM word/phrase in the lyrics, quote the line. Quote both its Romanji and its Kanji/Han/한글 form.
+- 1 part ask about a RANDOM word/phrase in the lyrics, quote the line. Quote both its Romanji and its Kanji/Han/한글 form. Please really random the word, NOT just ask about a few starting words.
 - 1 part ask student to make a sentence with it 
 Add cute emoji between sentences in the message.
 

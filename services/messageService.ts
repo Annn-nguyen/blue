@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import {Message, IMessage} from '../models/Message';
 import GraphApi from './graph-api';
-import { SortOrder } from 'mongoose';
 
 export default class MessageService {
     static async sendMessage(message: string, threadId: string, psid: string):Promise<void>{
@@ -86,10 +85,11 @@ export default class MessageService {
         try {
             const raw = await this.getChatMsg(threadId, size, 'desc');
             result = raw
+                .reverse()
                 .map((message) => `At ${message.timestamp} from ${message.sender}: ${message.text}`)
                 .join('\n');
         } catch (err) {
-            console.error(`Error whil getting chatMsg ${err}`);
+            console.error(`Error while getting chatMsg ${err}`);
         }
         
         return result;
