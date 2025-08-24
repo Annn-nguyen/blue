@@ -107,8 +107,11 @@ export default class WebhookController {
                     
 
                     // based on type of event, route to the correct handler
-                    if (webhookEvent.message) {
-                        MessageController.handleMessage(webhookEvent, user);
+                    if (webhookEvent.message.quick_reply && webhookEvent.message.quick_reply.payload) {
+                        MessageController.handleQuickReplies(webhookEvent.message.quick_reply.payload,user)
+                    }
+                    else if (webhookEvent.message) {
+                        MessageController.handleMessage(webhookEvent.message.text, user);
                     } else if (webhookEvent.postback) {
                         PostbackController.handlePostback(webhookEvent, user);
                     } else {

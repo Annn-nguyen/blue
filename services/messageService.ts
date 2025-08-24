@@ -3,13 +3,42 @@ import {Message, IMessage} from '../models/Message';
 import GraphApi from './graph-api';
 
 export default class MessageService {
-    static async sendMessage(message: string, threadId: string, psid: string):Promise<void>{
+    static async sendMessage(message: string, threadId: string, psid: string, hasQuickReply: boolean = false):Promise<void>{
         try {
-            const requestBody = {
+            let requestBody = {} as any;
+            if (hasQuickReply === true) {
+                requestBody = {
+                    recipient: { id: psid },
+                    message: { 
+                            text: message, 
+                            quick_replies: [
+                                {
+                                    content_type: "text",
+                                    title: "Quiz me!",
+                                    payload: "QUIZ_ME"
+                                },
+                                {
+                                    content_type: "text",
+                                    title: "Yes",
+                                    payload: "YES"
+                                },
+                                {
+                                    content_type: "text",
+                                    title: "Continue w lyrics",
+                                    payload: "CONTINUE_SONG"
+                                }
+                            ]
+                        },
+                };
+            } else {
+                requestBody = {
                     recipient: { id: psid },
                     message: { text: message },
-            };
+                };
+            }
+
             const sendResult = await GraphApi.callSendApi(requestBody);
+            
 
             // save bot msg
             if (sendResult) {

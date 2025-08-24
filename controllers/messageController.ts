@@ -7,7 +7,7 @@ import ThreadService from "../services/threadService";
 import { Thread, IThread } from "../models/Thread";
 
 export default class MessageController {
-    static async handleMessage(webhookEvent: any, user: any):Promise<void>{
+    static async handleMessage(userMessage: string, user: any):Promise<void>{
         try {
             const psid = user.psid;
             // setup thread, save msg
@@ -20,11 +20,11 @@ export default class MessageController {
             const threadId = currentThread ? (currentThread._id as any).toString() : null;
             const vocabBeforeLesson = currentThread ? (currentThread.userVocab as string) : '';
 
-            await MessageService.saveUserMessage(threadId, psid, webhookEvent.message.text);
+            await MessageService.saveUserMessage(threadId, psid, userMessage);
 
             // check whether it is closeThread
             const closeLessonKeywords = ['close lesson', 'end lesson', 'finish lesson', 'stop lesson'];
-            if (closeLessonKeywords.some(keyword => webhookEvent.message.text.toLowerCase().includes(keyword))) {
+            if (closeLessonKeywords.some(keyword => userMessage.toLowerCase().includes(keyword))) {
                 console.log('Running close thread');
                 await this.closeThread(threadId, vocabBeforeLesson, user);
                 return;
@@ -41,8 +41,9 @@ export default class MessageController {
 
                 console.log('Typing off SENT to user');
 
-                await MessageService.sendMessage(message, threadId, psid);
+                await MessageService.sendMessage(message, threadId, psid, true);
                 console.log('Message SENT and SAVED');
+
             } else {
                 console.log('No response from LLM to respond to user');
             }
@@ -56,6 +57,37 @@ export default class MessageController {
         }
 
         
+    }
+
+    static async handleQuickReplies(quickReply: string, user: any):Promise<void>{
+        try {
+
+
+            // handle each quick reply
+            let translatedMsg = '' as string;
+            switch (quickReply) {
+                case "QUIZ_ME":
+                    // Trigger quiz logic here
+                    translatedMsg = 'quiz me something with what i have learned so far with the current song!';
+                    await this.handleMessage(translatedMsg, user);
+                    
+                    break;
+                case "YES":
+                    translatedMsg = 'yes';
+                    await this.handleMessage(translatedMsg, user);
+                    break;
+                case "CONTINUE_SONG":
+                    translatedMsg = 'please continue explaining the song';
+                    await this.handleMessage(translatedMsg, user);
+                    break;
+                default:
+                    console.error('No logic for this quick reply!');
+            }
+            return;
+        } catch(error) {
+            console.error('Error while handling quick replies: ', error);
+            return;
+        }
     }
     
     private static async closeThread(threadId: string, vocabBeforeLesson: string, user: any):Promise<void>{
