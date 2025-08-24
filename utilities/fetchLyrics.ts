@@ -5,82 +5,82 @@ import { z } from "zod";
 import axios from "axios";
 import * as cheerio from 'cheerio';
 
-import {Song} from "../models/Song";
+import { Song } from "../models/Song";
 import LLMService from "../services/llmService";
 import UserVocabService from "../services/userVocabService";
 import { IUserVocab, UserVocab } from "../models/UserVocab";
 import { IThread, Thread } from "../models/Thread";
 import { tool } from "@langchain/core/tools";
 
-import {analyzeUserVocab} from "./analyzeUserVocab";
+import { analyzeUserVocab } from "./analyzeUserVocab";
 
 interface Lyric {
     lyrics: string;
     error?: string;
 }
-const tavilyTool = new TavilySearch({maxResults: 10});
+const tavilyTool = new TavilySearch({ maxResults: 10 });
 
-async function fetchLyrics(title: string, artist: string, searchKeywords: string, language: string, threadId: string, userId: string) :Promise<string> {
+async function fetchLyrics(title: string, artist: string, searchKeywords: string, language: string, threadId: string, userId: string): Promise<string> {
 
     let lyrics = '';
     try {
         // try to fetch from our own catalog
-    let song = await Song.findOne({
-        artist,
-        searchKeywords: { $regex: title, $options: "i"}
-    });
-    console.log('Searching in catalog: by ', artist, ' with title ', title, ' included in  search keywords: ', searchKeywords,' and result is: ', song);
+        let song = await Song.findOne({
+            artist,
+            searchKeywords: { $regex: title, $options: "i" }
+        });
+        console.log('Searching in catalog: by ', artist, ' with title ', title, ' included in  search keywords: ', searchKeywords, ' and result is: ', song);
 
-    if (!song) {
-        song = await Song.findOne({
-            searchKeywords: { $regex: title, $options: "i"}
-        }); 
-        console.log('Searching in catalog only with title ',title, ' included in search keywords: ', searchKeywords,' and result is: ', song); 
-    }
-
-    if (song) {
-        console.log('Found in catalog: ', song.title, ' by ', song.artist)
-        lyrics = song.lyrics.toString();
-    } else {
-        console.log('Not found in catalog: ', title, ' by ', artist, ' with search keywords: ', searchKeywords);
-        // if not exist, fetch from online source
-        // call tavily search to get the url
-        const searchQuery = 'lyrics of the song ' + title + " by " + artist + " (prefer on AZlyrics.com, miraikyun.com, letras.com )";
-        const searchResult = await tavilyTool.invoke({query: searchQuery});
-        console.log('Tavily lyrics search result: ', searchResult)
-
-        // scrape lyrics from website if possible
-        
-        for (const item of searchResult.results) {
-            if (item.url.includes('azlyrics.com')) {
-                console.log('SCRAPING from azlyrics');
-                const result = await scrapeFromAZlyrics(item.url);
-                if (result.lyrics) {
-                    lyrics = result.lyrics;
-                    break;
-                }
-            }
-
-            if (item.url.includes('miraikyun.com')) {
-                console.log('SCRAPING from miraikyun');
-                const result = await scrapeFromMiraikyun(item.url);
-                if (result.lyrics) {
-                    lyrics = result.lyrics;
-                    break;
-                }
-            }
-
-            if (item.url.includes('letras.com')) {
-                console.log('SCRAPING from letras');
-                const result = await scrapeFromLetras(item.url);
-                if (result.lyrics) {
-                    lyrics = result.lyrics;
-                    break;
-                }
-            }
+        if (!song) {
+            song = await Song.findOne({
+                searchKeywords: { $regex: title, $options: "i" }
+            });
+            console.log('Searching in catalog only with title ', title, ' included in search keywords: ', searchKeywords, ' and result is: ', song);
         }
 
-        // store lyrics scraped to our catalog
+        if (song) {
+            console.log('Found in catalog: ', song.title, ' by ', song.artist)
+            lyrics = song.lyrics.toString();
+        } else {
+            console.log('Not found in catalog: ', title, ' by ', artist, ' with search keywords: ', searchKeywords);
+            // if not exist, fetch from online source
+            // call tavily search to get the url
+            const searchQuery = 'lyrics of the song ' + title + " by " + artist + " (prefer on AZlyrics.com, miraikyun.com, letras.com )";
+            const searchResult = await tavilyTool.invoke({ query: searchQuery });
+            console.log('Tavily lyrics search result: ', searchResult)
+
+            // scrape lyrics from website if possible
+
+            for (const item of searchResult.results) {
+                if (item.url.includes('azlyrics.com')) {
+                    console.log('SCRAPING from azlyrics');
+                    const result = await scrapeFromAZlyrics(item.url);
+                    if (result.lyrics) {
+                        lyrics = result.lyrics;
+                        break;
+                    }
+                }
+
+                if (item.url.includes('miraikyun.com')) {
+                    console.log('SCRAPING from miraikyun');
+                    const result = await scrapeFromMiraikyun(item.url);
+                    if (result.lyrics) {
+                        lyrics = result.lyrics;
+                        break;
+                    }
+                }
+
+                if (item.url.includes('letras.com')) {
+                    console.log('SCRAPING from letras');
+                    const result = await scrapeFromLetras(item.url);
+                    if (result.lyrics) {
+                        lyrics = result.lyrics;
+                        break;
+                    }
+                }
+            }
+
+            // store lyrics scraped to our catalog
             console.log('Saving to song catalog: ', title, ' by ', artist, ' with search keyword: ', searchKeywords, ' and language: ', language);
             await Song.create({
                 title: title,
@@ -91,13 +91,13 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
             })
             console.log('SAVED TO SONG COLLECTION!')
 
-        console.log('Lyrics scraped: ', lyrics);
-    }
-    
+            console.log('Lyrics scraped: ', lyrics);
+        }
 
-    // if lyrics found 
-    if (lyrics != '') {
-        // analyze vocab of the song 
+
+        // if lyrics found 
+        if (lyrics != '') {
+            // analyze vocab of the song 
             const wordList = await LLMService.breakdownVocab(lyrics);
             console.log('Song words breakdown: ', wordList);
 
@@ -111,7 +111,7 @@ async function fetchLyrics(title: string, artist: string, searchKeywords: string
             });
 
             console.log('Thread updated successfully');
-    } 
+        }
     } catch (error) {
         console.error('Error while running fetch lyrics!');
     }
@@ -130,11 +130,11 @@ async function scrapeFromAZlyrics(url: string): Promise<Lyric> {
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         };
-        const response = await axios.get(url, {headers});
+        const response = await axios.get(url, { headers });
 
         if (response.status !== 200) {
             console.error("Failed to fetch data from AZlyrics. Status code:", response.status);
-            return {lyrics: "", error: "Failed to fetch data from AZLyrics."};
+            return { lyrics: "", error: "Failed to fetch data from AZLyrics." };
         }
 
         const content = cheerio.load(response.data);
@@ -146,10 +146,10 @@ async function scrapeFromAZlyrics(url: string): Promise<Lyric> {
 
         if (lyrics.length === 0) {
             console.error("No lyrics found on AZLyrics page.");
-            return {lyrics: "", error: "No lyrics found on AZLyrics."};
+            return { lyrics: "", error: "No lyrics found on AZLyrics." };
         }
         return { lyrics: lyrics };
-    } catch (error) {  
+    } catch (error) {
         console.error("Error scraping AZLyrics:", error);
         return { lyrics: "", error: `AZLyrics scraping error: ${String(error)}` };
     }
@@ -160,17 +160,17 @@ async function scrapeFromMiraikyun(url: string): Promise<Lyric> {
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         };
-        const response = await axios.get(url, {headers});
+        const response = await axios.get(url, { headers });
 
         if (response.status !== 200) {
-            console.error("Failed to fetch page from ", url,". Status code:", response.status);
-            return {lyrics: "", error: `Failed to fetch page, status code: ${response.status}`};
+            console.error("Failed to fetch page from ", url, ". Status code:", response.status);
+            return { lyrics: "", error: `Failed to fetch page, status code: ${response.status}` };
         };
 
         const content = cheerio.load(response.data);
         const contentDiv = content('div.entry-content');
 
-        if (!contentDiv.length){
+        if (!contentDiv.length) {
             return { lyrics: "", error: "No lyrics found" };
         };
 
@@ -185,7 +185,7 @@ async function scrapeFromMiraikyun(url: string): Promise<Lyric> {
 
         console.log("Scraped lyrics from Miraikyun:", lyrics);
 
-        return { lyrics: lyrics}
+        return { lyrics: lyrics }
     } catch (error) {
         console.error("Error scraping Miraikyun:", error);
         return { lyrics: "", error: `Miraikyun scraping error: ${String(error)}` };
@@ -206,7 +206,51 @@ async function scrapeFromLetras(url: string): Promise<Lyric> {
         }
 
         const content = cheerio.load(response.data);
-        const lyrics = content('div.cnt-letra').text().trim();
+
+        let lyrics = '' as string;
+        // Select all <p> tags inside .cnt-letra
+        // Common selectors for lyrics on letras.com
+        const possibleSelectors = [
+            '.lyric-original',
+            '.letra-original',
+            '.lyrics',
+            'div[class*="lyric"]',
+            'div[class*="letra"]',
+            '.cnt-letra',
+            'article'
+        ];
+
+        // Try each selector until we find content
+        for (const selector of possibleSelectors) {
+            const element = content(selector);
+            if (element.length > 0 && element.text().trim()) {
+                lyrics = element.text().trim();
+                break;
+            }
+        }
+
+        // If no specific lyrics selector worked, try to extract from the main content
+        if (!lyrics) {
+            // Look for the largest text block that might contain lyrics
+            content('script, style, nav, header, footer, .comments, .sidebar').remove();
+
+            let bestCandidate = '';
+            content('div, article, section').each((_, element) => {
+                const text = content(element).text().trim();
+                if (text.length > bestCandidate.length && text.length > 100) {
+                    bestCandidate = text;
+                }
+            });
+
+            lyrics = bestCandidate;
+        }
+
+        // Clean up the text
+        lyrics = lyrics
+            .replace(/\s+/g, ' ')
+            .replace(/\n\s*\n/g, '\n')
+            .trim();
+
 
         console.log("Scraped lyrics from Letras:", lyrics);
 
@@ -234,16 +278,16 @@ const fetchLyricsSchema = z.object({
 });
 
 
-export { fetchLyrics, scrapeFromAZlyrics, scrapeFromMiraikyun};
+export { fetchLyrics, scrapeFromAZlyrics, scrapeFromMiraikyun, scrapeFromLetras };
 
 export const fetchLyricsTool = tool(
-    async({artist, title, searchKeywords, language, threadId, userId}: {artist: string, title: string, searchKeywords: string, language: string, threadId: string, userId: string}) => {
-        
+    async ({ artist, title, searchKeywords, language, threadId, userId }: { artist: string, title: string, searchKeywords: string, language: string, threadId: string, userId: string }) => {
+
         let lyrics = '';
         try {
             lyrics = await fetchLyrics(title, artist, searchKeywords, language, threadId, userId);
 
-        } catch(error) {
+        } catch (error) {
             console.error('Error while calling fetchLyrics tool');
         }
         return lyrics;
@@ -254,3 +298,4 @@ export const fetchLyricsTool = tool(
         schema: fetchLyricsSchema,
     }
 )
+
